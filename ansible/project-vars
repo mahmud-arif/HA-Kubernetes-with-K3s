@@ -1,4 +1,4 @@
-master_ip: 10.0.1.170
+master_ip: 10.0.1.211
 remote_dest: /home/ubuntu/k3s_token
 local_dest: /Users/mahmud/Desktop/skill-development/ha-kubernetes-with-k3s/ansible/temp/
 
@@ -6,3 +6,5 @@ target_directory: /home/ubuntu/.kube
 target_file: config
 
 local_dockerfile: /Users/mahmud/Desktop/skill-development/ha-kubernetes-with-k3s/ansible/Dockerfile
+
+local_nginx: /Users/mahmud/Desktop/skill-development/ha-kubernetes-with-k3s/ansible/nginx.conf

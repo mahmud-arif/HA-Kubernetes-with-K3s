@@ -1,5 +1,5 @@
 # HA Kubernetes Cluster with K3s 
- Visualization what we are going to build here
+ Visualization what we are going to build here. I used Custom  L7 Nginx for Loadbalancer without Ingress.
 
 <img src="./infra-network.png" alt="infra-network" width="50%" />
 

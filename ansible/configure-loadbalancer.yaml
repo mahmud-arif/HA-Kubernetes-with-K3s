@@ -44,23 +44,35 @@
     - project-vars
   # connection: local
   tasks:
-  - name: check docker folder stat
-    stat:
-      path: /home/ubuntu/Dockerfile
-    register: stat_result
+  # - name: check docker folder stat
+  #   stat:
+  #     path: /home/ubuntu/Dockerfile
+  #   register: stat_result
   - name: copy docker file to server
     copy:
       src: "{{local_dockerfile}}"
       dest: "/home/ubuntu"
-    when: not stat_result.stat.exists
-  - name: Build Docker nginx Image
-    docker_image:
-      name: nginx-loadbalancer
-      build:
-        path: /home/ubuntu/
-        pull: "yes"
-      source: build
-      state: present
+    # when: not stat_result.stat.exists
+  - name: copy nginx.conf file to server
+    copy:
+      src: "{{local_nginx}}"
+      dest: "/home/ubuntu"
+  
+    # when: not stat_result.stat.exists
+  # - name: Build Docker nginx Image
+  #   docker_image:
+  #     name: nginx-loadbalancer
+  #     build:
+  #       path: /home/ubuntu/
+  #       pull: "yes"
+  #     source: build
+  #     state: present
+  - name: Build Docker image
+    ansible.builtin.shell:
+      cmd: "docker build -t nginx-custom /home/ubuntu/"
+    args:
+      chdir: "/home/ubuntu/"
+
 - name: Create nginx container from image
   hosts: nginx_lb
   become: yes
@@ -71,7 +83,7 @@
   - name: Create nginx Container
     docker_container:
       name: "{{ container_name }}"
-      image: nginx-loadbalancer 
+      image: nginx-custom
       ports:
        - "80:80"
       state: started
