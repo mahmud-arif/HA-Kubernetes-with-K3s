@@ -1,0 +1,77 @@
+---
+- name: Install docker
+  hosts: nginx_lb
+  become: yes
+  vars_files:
+    - project-vars
+  tasks:
+    - name: Update package index
+      apt: update_cache=yes
+
+    - name: Install packages to allow apt to use a repository over HTTPS
+      apt: name={{ item }} state=present
+      with_items:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common
+
+    - name: Add Docker's official GPG key
+      apt_key: url=https://download.docker.com/linux/ubuntu/gpg state=present
+
+    - name: Set up the stable repository
+      apt_repository: repo='deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable' state=present
+
+    - name: Install Docker CE
+      apt: name=docker-ce state=present
+    - name: start docker demon
+      systemd: 
+         name: docker
+         state: started 
+
+    - name: add user to docker group
+      user: 
+        name: ubuntu
+        groups: docker 
+        append: yes 
+    - name: reconnect to server session
+      meta: reset_connection
+
+- name: Create nginx image from docker file
+  hosts: nginx_lb
+  become: yes
+  vars_files:
+    - project-vars
+  # connection: local
+  tasks:
+  - name: check docker folder stat
+    stat:
+      path: /home/ubuntu/Dockerfile
+    register: stat_result
+  - name: copy docker file to server
+    copy:
+      src: "{{local_dockerfile}}"
+      dest: "/home/ubuntu"
+    when: not stat_result.stat.exists
+  - name: Build Docker nginx Image
+    docker_image:
+      name: nginx-loadbalancer
+      build:
+        path: /home/ubuntu/
+        pull: "yes"
+      source: build
+      state: present
+- name: Create nginx container from image
+  hosts: nginx_lb
+  become: yes
+  vars: 
+    container_name: nginx-lb
+  # connection: local
+  tasks:
+  - name: Create nginx Container
+    docker_container:
+      name: "{{ container_name }}"
+      image: nginx-loadbalancer 
+      ports:
+       - "80:80"
+      state: started

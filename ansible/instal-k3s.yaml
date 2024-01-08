@@ -1,0 +1,79 @@
+---
+- name: Deploy K3s Cluster
+  hosts: k3s_nodes
+  become: true
+  vars_files:
+    - project-vars
+  tasks:
+    - name: Install dependencies
+      apt:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - curl
+        - sudo
+        - iptables
+
+    - name: Download and install K3s
+      shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--tls-san {{master_ip}}" sh -
+
+    
+    - name: Set permissions for k3s.yaml
+      file:
+        path: /etc/rancher/k3s/k3s.yaml
+        mode: '0644'
+      become: true
+
+    - name: Set ownership for k3s.yaml
+      become: true
+      command: chown {{ lookup('pipe', 'id -u') }}:{{ lookup('pipe', 'id -g') }} /etc/rancher/k3s/k3s.yaml
+
+
+    - name: Retrieve K3s token
+      shell: sudo cat /var/lib/rancher/k3s/server/node-token
+      register: k3s_token
+
+    - name: Store K3s token in a file
+      copy:
+        content: "{{ k3s_token.stdout }}"
+        dest: "{{remote_dest}}" 
+      
+    - name: Fetch the file from the remote host
+      ansible.builtin.fetch:
+        src: "{{remote_dest}}"  # Specify the source file on the remote machine
+        dest: "{{local_dest}}"       # Specify the destination path on the local machine
+        flat: yes
+    - name: Fetch the kubeconfig file from the remote host
+      ansible.builtin.fetch:
+        src: "/etc/rancher/k3s/k3s.yaml"  # Specify the source file on the remote machine
+        dest: "{{local_dest}}"       # Specify the destination path on the local machine
+        flat: yes
+ 
+
+
+
+- name: Add Additional K3s Agent Nodes
+  hosts: additional_agent_nodes
+  become: true
+  vars_files:
+    - project-vars
+  tasks:
+    - name: Install dependencies
+      apt:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - curl
+        - sudo
+        - iptables
+        
+    - name: Copy k3s_token file
+      ansible.builtin.copy:
+        src: "{{local_dest}}k3s_token" # Specify the local path to the k3s_token file
+        dest: "{{remote_dest}}"
+
+    - name: Download and install K3s agent
+      shell: "curl -sfL https://get.k3s.io | K3S_URL=https://{{master_ip}}:6443 K3S_TOKEN=$(cat {{ k3s_token_file_path }}) sh -"
+      vars:
+        k3s_token_file_path: "{{remote_dest}}"
+

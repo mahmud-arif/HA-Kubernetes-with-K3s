@@ -1,0 +1,35 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-nodejs-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: simple-nodejs
+  template:
+    metadata:
+      labels:
+        app: simple-nodejs
+    spec:
+      containers:
+      - name: simple-nodejs-container
+        image: mahmudarif/simple-nodejs-1:1.2
+        ports:
+        - containerPort: 4000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simple-nodejs-service
+spec:
+  selector:
+    app: simple-nodejs
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 4000
+  type: NodePort
+

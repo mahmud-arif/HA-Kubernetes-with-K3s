@@ -1,0 +1,77 @@
+---
+- name: Install Helm and kubectl on Ubuntu
+  hosts: bastion
+  become: true
+  gather_facts: true
+  vars_files:
+    - project-vars
+  tasks:
+    - name: Install required dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg-agent
+          - software-properties-common
+        state: present
+
+    - name: Add the Kubernetes apt repository key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Add the Kubernetes apt repository
+      apt_repository:
+        repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+
+    - name: Install kubectl
+      apt:
+        name: kubectl
+        state: present
+
+    - name: Download and install Helm
+      get_url:
+        url: https://get.helm.sh/helm-v3.7.0-linux-amd64.tar.gz
+        dest: /home/ubuntu/
+      register: download_result
+    - debug: msg={{download_result}}
+    - name: Extract Helm archive
+      ansible.builtin.unarchive:
+        src: "{{download_result.dest}}" 
+        dest: /home/ubuntu
+        remote_src: true
+      # when: not stat_result.stat.exists
+    - name: find the helm folder
+      find: 
+        path: /home/ubuntu
+        pattern: "linux-*"
+        file_type: directory
+      register: find_result
+    - debug: msg={{find_result}}
+    - name: Move Helm binary to /usr/local/bin
+      ansible.builtin.command:
+        cmd: "mv {{find_result.files[0].path}}/helm /usr/local/bin/helm"
+
+    - name: Clean up temporary files
+      ansible.builtin.file:
+        path: "{{download_result.dest}}" 
+        state: absent
+
+    - name: Clean up extracted files
+      ansible.builtin.file:
+        path: "{{find_result.files[0].path}}" 
+        state: absent
+    - name: Create directory if not exist
+      file:
+        path: "{{ target_directory }}"
+        state: directory
+        mode: 0755  # Adjust the permissions as needed
+        # remote_src: true
+    - name: Create empty file if not exist
+      command: touch "{{ target_file }}"
+    - name: Copy file to remote host
+      copy:
+        src: "{{ local_dest }}k3s.yaml"
+        dest: "{{ target_directory }}/{{target_file}}"
